@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-import org.apache.commons.collections.functors.IfClosure;
+//export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
 
 //cd OneDrive/desktop/personal/battlecode/battlecode24-scaffold-main
 //gradlew run -PteamA=examplefuncsplayer -PteamB=examplefuncsplayer2 -Pmaps=DefaultMedium
@@ -29,14 +29,14 @@ public strictfp class RobotPlayer {
     static int order = 0;
     static MapLocation[] flagGuesses = null;
     static Direction lastdir = Direction.NORTH;
-    static boolean straight = false;
+    static boolean straight = false, cw;
     /**
      * A random number generator.
      * We will use this RNG to make some random moves. The Random class is provided by the java.util.Random
      * import at the top of this file. Here, we *seed* the RNG with a constant number (6147); this makes sure
      * we get the same sequence of numbers every time this code is run. This is very useful for debugging!
      */
-    //static final Random rng = new Random(6147);
+    static final Random rng = new Random(6147);
 
     /** Array containing all the possible movement directions. */
     static final Direction[] directions = {
@@ -67,9 +67,11 @@ public strictfp class RobotPlayer {
         // You can also use indicators to save debug notes in replays.
         rc.setIndicatorString("Hello world!");
         
-        while (rc.readSharedArray(order)!=0) order+=1;
+        while (rc.readSharedArray(order)!=0) {
+        	order+=1;
+        	rng.nextBoolean(); //Remove this in final version, just to have divergence from nonrandom seed
+        }
 		rc.writeSharedArray(order, 1);
-		Random rng = new Random(order+1);
 		
 		Team team = rc.getTeam();
 		Team opp = team.opponent();
@@ -79,14 +81,13 @@ public strictfp class RobotPlayer {
 		MapLocation[] spawnLocs = rc.getAllySpawnLocations();
 		MapLocation firstLoc = spawnLocs[0];
 		int[] distLocs = {0,0,0};
-		Direction dir;
 		int round;
 		int num;
+		Direction dir;
 		MapLocation[] flagBroadcast;
 		MapLocation dest;
 		MapLocation loc;
-		RobotInfo leader = null;
-		boolean cw = (order%2==0);
+		cw = (order%2==0);
 
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
@@ -167,102 +168,17 @@ public strictfp class RobotPlayer {
 		                    		if(rc.senseRobotAtLocation(dest) != null) dir = dir.opposite(); 
 		                    	}
 		                    	else {
-		           
-		                    		//if nearby robots on the same team carry enemy flag, then follow them
-		                    		RobotInfo[] nearbyAllies = rc.senseNearbyRobots(-1, team);
-//		                    		RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(-1, opp);
-		                    		int lowestID = rc.getID(); 
-		                    		
-		                    		for(RobotInfo ally : nearbyAllies) {
-//		                    			if(ally.hasFlag()) { //WHY is this not executing;
-//		                    				rc.resign();
-//		                    				leader = ally;
-//		                    				break; 
-//		                    			}
-		                    			if(ally.getID()<lowestID) {
-		                    				lowestID = ally.getID();
-		                    				leader = ally;
-		                    			}
-		                    		}
-//		                    		
-//		                    		for(RobotInfo enemy : nearbyEnemies) {
-//		                    			if(enemy.getHealth()<rc.getHealth() && nearbyAllies.length>1) {
-//		                    				if(enemy == null)leader = enemy; 
-//		                    			}
-//		                    		}
-		                    		
-		                    		if(leader == null) {
 		                    		flagGuesses = rc.senseBroadcastFlagLocations();
 		                    		if (flagGuesses.length>0) dir = loc.directionTo(flagGuesses[0]);
 		                    		else dir = directions[rng.nextInt(directions.length)];
-		                    		}else {
-//		                    			rc.resign();
-		                    			rc.setIndicatorString("I'm following: " + leader.getID());
-		                    			dest = leader.getLocation();
-		                    			dir = loc.directionTo(dest);
-		                    		}
-		                    		
-		                    		
 		                    	}
 		                    	
 		                    }
 		                    /*double dirdif = Math.IEEEremainder(dir.getDirectionOrderNum()-lastdir.getDirectionOrderNum(),8);
 		                    if(dirdif>0)
 		                    */
-		                    if(straight && dir!=Direction.CENTER) {
-		                    	lastdir = dir;
-		                    	if(rc.canMove(dir.rotateLeft().rotateLeft())&&rc.canMove(dir.rotateRight().rotateRight())) {
-		                    		cw = rng.nextBoolean();
-		                    	}
-		                    }
-		                    straight = false;
-		                    if(cw) {
-		                    	if(rc.canMove(lastdir)) {
-			                    	while (true){
-			                    		if(rc.canMove(lastdir)) {
-				                    		if(lastdir == dir) {
-				                    			straight = true;
-				                    			break;
-				                    		}
-				                    		lastdir = lastdir.rotateRight();
-			                    		}
-			                    		else {
-				                    		lastdir = lastdir.rotateLeft();
-				                    		break;
-			                    		}
-			                    	}
-			                    } else {
-			                    	num=0;
-			                    	while(!rc.canMove(lastdir) && num<8) {
-			                    		lastdir = lastdir.rotateLeft();
-			                    		num++;
-			                    	}
-			                    }
-		                    } else {
-		                    	if(rc.canMove(lastdir)) {
-			                    	while (true){
-			                    		if(rc.canMove(lastdir)) {
-				                    		if(lastdir == dir) {
-				                    			straight = true;
-				                    			break;
-				                    		}
-				                    		lastdir = lastdir.rotateLeft();
-			                    		}
-			                    		else {
-				                    		lastdir = lastdir.rotateRight();
-				                    		break;
-			                    		}
-			                    	}
-			                    } else {
-			                    	num=0;
-			                    	while(!rc.canMove(lastdir) && num<8) {
-			                    		lastdir = lastdir.rotateRight();
-			                    		num++;
-			                    	}
-			                    }
-		                    }
-		                    if(rc.canMove(lastdir)) rc.move(lastdir);
 		                    
+		                    pathfindNoFill(rc, dir);
 		                    //if(rc.canFill(loc.add(dir))) rc.fill(rc.getLocation().add(dir));
 			                
 	                    }
@@ -302,9 +218,11 @@ public strictfp class RobotPlayer {
 	                    	}
 	                    }
 	                    
-	                    // Rarely attempt placing traps behind the robot.
+	                    // Rarely attempt placing traps behind the robot. Place explosive near spawn zones, and stun traps near large groups of enemies
 	                    MapLocation prevLoc = loc.subtract(dir);
-	                    if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
+	                    if (rc.canBuild(TrapType.STUN, prevLoc) && rc.senseNearbyRobots(-1, rc.getTeam().opponent()).length >5)
+	                        rc.build(TrapType.STUN, prevLoc);
+	                    if (rc.getRoundNum() < GameConstants.SETUP_ROUNDS && rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && (rc.senseNearbyMapInfos(rc.getAllySpawnLocations()[0], 2).length>1 || rc.senseNearbyMapInfos(rc.getAllySpawnLocations()[20], 2).length>1))
 	                        rc.build(TrapType.EXPLOSIVE, prevLoc);
 	                    
 	                    // We can also move our code into different methods or classes to better organize it!
@@ -352,5 +270,63 @@ public strictfp class RobotPlayer {
                 int numEnemies = rc.readSharedArray(0);
             }
         }
+    }
+    public static void pathfindNoFill(RobotController rc, Direction goal) throws GameActionException{
+    	// If going straight, it sets the velocity to forward.
+    	if(straight && goal!=Direction.CENTER) {
+        	lastdir = goal;
+        }
+        straight = false;
+        if(cw) {
+        	if(rc.canMove(lastdir)) {
+            	while (true){
+            		// Turns until it finds a wall or lines up with desired direction
+            		if(rc.canMove(lastdir)) {
+                		if(lastdir == goal) {
+                			straight = true;
+                			// 1 in 10 chance of switching direction
+                			cw = rng.nextInt()%10!=0;
+                			break;
+                		}
+                		lastdir = lastdir.rotateRight();
+            		}
+            		else {
+                		lastdir = lastdir.rotateLeft();
+                		break;
+            		}
+            	}
+            } else {
+            	int num=0;
+            	while(!rc.canMove(lastdir) && num<8) {
+            		lastdir = lastdir.rotateLeft();
+            		num++;
+            	}
+            }
+        } else {
+        	if(rc.canMove(lastdir)) {
+            	while (true){
+            		if(rc.canMove(lastdir)) {
+                		if(lastdir == goal) {
+                			straight = true;
+                			// 1 in 10 chance of switching direction
+                			cw = rng.nextInt()%10==0;
+                			break;
+                		}
+                		lastdir = lastdir.rotateLeft();
+            		}
+            		else {
+                		lastdir = lastdir.rotateRight();
+                		break;
+            		}
+            	}
+            } else {
+            	int num=0;
+            	while(!rc.canMove(lastdir) && num<8) {
+            		lastdir = lastdir.rotateRight();
+            		num++;
+            	}
+            }
+        }
+        if(rc.canMove(lastdir)) rc.move(lastdir);
     }
 }
